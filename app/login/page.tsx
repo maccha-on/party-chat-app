@@ -9,6 +9,8 @@ export default function Login() {
 const [name, setName] = useState('');
 const { save } = useUsername();
 const router = useRouter();
+const buttonClass = 'rounded border border-blue-200 bg-blue-50 px-3 py-2 text-blue-800 transition-colors hover:bg-blue-100 font-medium';
+const inputClass = 'w-full rounded border border-blue-200 bg-blue-50 px-3 py-2 placeholder:text-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-200';
 
 
 const enter = () => {
@@ -27,9 +29,9 @@ return (
 </div>
 <div className="space-y-2">
 <label className="block text-sm">ユーザー名</label>
-<input value={name} onChange={(e)=>setName(e.target.value)} placeholder="例: たろう" className="px-3 py-2 w-full" />
+<input value={name} onChange={(e)=>setName(e.target.value)} placeholder="例: たろう" className={inputClass} />
 </div>
-<button onClick={enter} className="w-full">入室する</button>
+<button onClick={enter} className={`w-full ${buttonClass}`}>入室する</button>
 </main>
 );
 }

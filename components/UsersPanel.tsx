@@ -8,6 +8,7 @@ export type Member = { id:number; room_id:string; username:string; score:number;
 
 export default function UsersPanel({ roomId, me }:{ roomId:string; me:string }){
 const [members, setMembers] = useState<Member[]>([]);
+const smallButtonClass = 'rounded border border-blue-200 bg-blue-50 px-2 py-1 text-blue-800 transition-colors hover:bg-blue-100 text-sm font-medium';
 
 
 // 入室処理（upsert）＆ heartbeat（5秒毎）
@@ -70,8 +71,8 @@ return (
 <span className={`w-2 h-2 rounded-full ${online(m)?'bg-green-500':'bg-gray-300'}`} />
 <span className="w-28 truncate">{m.username}</span>
 <span className="w-10 text-right">{m.score}</span>
-<button onClick={()=>adjust(m.username, +1)}>＋</button>
-<button onClick={()=>adjust(m.username, -1)}>－</button>
+<button onClick={()=>adjust(m.username, +1)} className={smallButtonClass}>＋</button>
+<button onClick={()=>adjust(m.username, -1)} className={smallButtonClass}>－</button>
 <span className="ml-3 text-xs text-gray-500">{m.role}</span>
 </li>
 ))}

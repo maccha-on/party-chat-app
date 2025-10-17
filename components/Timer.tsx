@@ -13,12 +13,9 @@ type TimerRow = {
   remaining_ms: number;
 };
 
-const inputClass =
-  'w-full rounded border border-blue-200 bg-blue-50 px-3 py-2 placeholder:text-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-200';
 const buttonClass = 'rounded border border-blue-200 bg-blue-50 text-blue-800 transition-colors hover:bg-blue-100';
 
 export default function Timer({ roomId }: { roomId: string }) {
-  const [label, setLabel] = useState('Timer');
   const [running, setRunning] = useState(false);
   const [endsAt, setEndsAt] = useState<string | null>(null);
   const [remainingMs, setRemainingMs] = useState(0);
@@ -47,7 +44,6 @@ export default function Timer({ roomId }: { roomId: string }) {
     const load = async () => {
       const { data } = await supabase.from('timers').select('*').eq('room_id', roomId).maybeSingle();
       if (data) {
-        setLabel(data.label);
         setRunning(data.running);
         setEndsAt(data.ends_at);
         setRemainingMs(data.remaining_ms);
@@ -62,7 +58,6 @@ export default function Timer({ roomId }: { roomId: string }) {
         { event: '*', schema: 'public', table: 'timers', filter: `room_id=eq.${roomId}` },
         (payload: RealtimePostgresChangesPayload<TimerRow>) => {
           const next = payload.new as Partial<TimerRow> | null;
-          if (typeof next?.label === 'string') setLabel(next.label);
           if (typeof next?.running === 'boolean') setRunning(next.running);
           if (next && 'ends_at' in next) setEndsAt(next.ends_at ?? null);
           if (typeof next?.remaining_ms === 'number') {
@@ -101,14 +96,14 @@ export default function Timer({ roomId }: { roomId: string }) {
   const commitTimer = useCallback(
     async (next: { running: boolean; ends_at: string | null; remaining_ms: number }) => {
       if (supabase) {
-        await supabase.from('timers').upsert({ room_id: roomId, label: label || 'Timer', ...next });
+        await supabase.from('timers').upsert({ room_id: roomId, label: 'Timer', ...next });
       }
       setRunning(next.running);
       setEndsAt(next.ends_at);
       setRemainingMs(next.remaining_ms);
       syncInputs(next.remaining_ms);
     },
-    [label, roomId, supabase, syncInputs],
+    [roomId, supabase, syncInputs],
   );
 
   const startTimer = useCallback(
@@ -168,8 +163,7 @@ export default function Timer({ roomId }: { roomId: string }) {
 
   return (
     <div className="rounded border bg-white p-3">
-      <div className="mb-2 flex items-center justify-between">
-        <input value={label} onChange={(e) => setLabel(e.target.value)} className={inputClass} />
+      <div className="mb-2 flex items-center justify-end">
         <span className="font-mono text-xl">{fmt(left)}</span>
       </div>
       <div className="mb-3 flex flex-wrap items-end gap-3 text-sm">
@@ -197,7 +191,9 @@ export default function Timer({ roomId }: { roomId: string }) {
             placeholder="00"
           />
         </label>
-        <span className="text-xs text-gray-500">分と秒を入力してEnterキーで開始</span>
+        <button onClick={() => void startFromInputs()} className={`${buttonClass} px-3 py-2 text-sm`}>
+          スタート
+        </button>
       </div>
       <div className="flex flex-wrap gap-2">
         <button onClick={() => void applyPreset(3)} className={`${buttonClass} px-3 py-2 text-sm`}>

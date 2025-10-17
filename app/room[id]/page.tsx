@@ -10,7 +10,7 @@ import Timer from '@/components/Timer';
 import TopicButtons from '@/components/TopicButtons';
 import TopHeader from '@/components/TopHeader';
 import UsersPanel from '@/components/UsersPanel';
-import { supabase } from '@/lib/supabaseClient';
+import { tryGetSupabaseClient } from '@/lib/supabaseClient';
 import { useUsername } from '@/lib/useUsername';
 
 export default function RoomPage() {
@@ -18,6 +18,7 @@ export default function RoomPage() {
   const { username, isLoaded } = useUsername();
   const router = useRouter();
   const [myRole, setMyRole] = useState('未定');
+  const supabase = tryGetSupabaseClient();
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -26,6 +27,7 @@ export default function RoomPage() {
 
   useEffect(() => {
     if (!username) return;
+    if (!supabase) return;
 
     const loadMyRole = async () => {
       const { data } = await supabase
@@ -55,7 +57,7 @@ export default function RoomPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [id, username]);
+  }, [id, username, supabase]);
 
   if (!isLoaded) return null;
   if (!username) return null;

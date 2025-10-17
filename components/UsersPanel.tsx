@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
+import { tryGetSupabaseClient } from '@/lib/supabaseClient';
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
 
@@ -9,11 +9,12 @@ export type Member = { id:number; room_id:string; username:string; score:number;
 
 export default function UsersPanel({ roomId, me }:{ roomId:string; me:string }){
 const [members, setMembers] = useState<Member[]>([]);
-const smallButtonClass = 'rounded border border-blue-200 bg-blue-50 px-2 py-1 text-blue-800 transition-colors hover:bg-blue-100 text-sm font-medium';
+const supabase = tryGetSupabaseClient();
 
 
 // 入室処理（upsert）＆ heartbeat（5秒毎）
 useEffect(() => {
+if (!supabase) return;
 let alive = true;
 const upsertMe = async () => {
 await supabase.from('members').upsert({ room_id: roomId, username: me, updated_at: new Date().toISOString() });
@@ -25,11 +26,12 @@ window.addEventListener('beforeunload', beforeUnload);
 
 
 return () => { alive = false; clearInterval(hb); window.removeEventListener('beforeunload', beforeUnload); };
-}, [roomId, me]);
+}, [roomId, me, supabase]);
 
 
 // 初期読み込み + Realtime購読
 useEffect(() => {
+if (!supabase) return;
 const load = async () => {
 const { data } = await supabase.from('members').select('*').eq('room_id', roomId).order('username');
 setMembers(data ?? []);
@@ -61,12 +63,13 @@ const ch = supabase
 )
 .subscribe();
 return () => { supabase.removeChannel(ch); };
-}, [roomId]);
+}, [roomId, supabase]);
 
 
 const adjust = async (u:string, delta:number) => {
 const m = members.find(x=>x.username===u);
 if (!m) return;
+if (!supabase) return;
 await supabase.from('members').update({ score: m.score + delta }).eq('id', m.id);
 };
 
@@ -85,8 +88,8 @@ return (
 <span className={`w-2 h-2 rounded-full ${online(m)?'bg-green-500':'bg-gray-300'}`} />
 <span className="w-28 truncate">{m.username}</span>
 <span className="w-10 text-right">{m.score}</span>
-<button onClick={()=>adjust(m.username, +1)} className={smallButtonClass}>＋</button>
-<button onClick={()=>adjust(m.username, -1)} className={smallButtonClass}>－</button>
+<button onClick={()=>adjust(m.username, +1)} disabled={!supabase}>＋</button>
+<button onClick={()=>adjust(m.username, -1)} disabled={!supabase}>－</button>
 <span className="ml-3 text-xs text-gray-500">{m.role}</span>
 </li>
 ))}

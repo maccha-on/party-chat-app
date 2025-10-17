@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
+import { tryGetSupabaseClient } from '@/lib/supabaseClient';
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
 
@@ -20,8 +20,7 @@ const [endsAt, setEndsAt] = useState<string|null>(null);
 const [remainingMs, setRemainingMs] = useState(0);
 const [now, setNow] = useState(Date.now());
 const audioRef = useRef<HTMLAudioElement|null>(null);
-const buttonClass = 'rounded border border-blue-200 bg-blue-50 px-3 py-2 text-blue-800 transition-colors hover:bg-blue-100 text-sm font-medium';
-const inputClass = 'rounded border border-blue-200 bg-blue-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200';
+const supabase = tryGetSupabaseClient();
 
 
 useEffect(()=>{ const i=setInterval(()=>setNow(Date.now()), 200); return ()=>clearInterval(i); },[]);
@@ -29,6 +28,7 @@ useEffect(()=>{ const i=setInterval(()=>setNow(Date.now()), 200); return ()=>cle
 
 // 初期取得 + Realtime
 useEffect(()=>{
+if (!supabase) return;
 const load = async () => {
 const { data } = await supabase.from('timers').select('*').eq('room_id', roomId).maybeSingle();
 if (data) { setLabel(data.label); setRunning(data.running); setEndsAt(data.ends_at); setRemainingMs(data.remaining_ms); }
@@ -49,7 +49,7 @@ const ch = supabase
 )
 .subscribe();
 return ()=>{ supabase.removeChannel(ch); };
-},[roomId]);
+},[roomId, supabase]);
 
 
 const left = useMemo(()=>{
@@ -77,10 +77,12 @@ const r = s % 60; return `${String(m).padStart(2,'0')}:${String(r).padStart(2,'0
 
 const start = async (sec:number) => {
 const end = new Date(Date.now() + sec*1000).toISOString();
+if (!supabase) return;
 await supabase.from('timers').upsert({ room_id: roomId, label: label || 'Timer', running: true, ends_at: end, remaining_ms: sec*1000 });
 };
 const pause = async () => {
 const remain = Math.max(0, (endsAt? new Date(endsAt).getTime(): Date.now()) - Date.now());
+if (!supabase) return;
 await supabase.from('timers').upsert({ room_id: roomId, label: label || 'Timer', running: false, ends_at: null, remaining_ms: remain });
 };
 
@@ -93,9 +95,9 @@ return (
 </div>
 <div className="flex flex-wrap gap-2 mb-2">
 {[30,60,90,120,180].map(s => (
-<button key={s} onClick={()=>start(s)} className={buttonClass}>{s}s スタート</button>
+<button key={s} onClick={()=>start(s)} disabled={!supabase}>{s}s スタート</button>
 ))}
-<button onClick={pause} className={buttonClass}>一時停止</button>
+<button onClick={pause} disabled={!supabase}>一時停止</button>
 </div>
 <audio ref={audioRef} src="/gong.mp3" preload="auto" />
 </div>

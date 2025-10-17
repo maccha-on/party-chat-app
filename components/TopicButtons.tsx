@@ -1,14 +1,24 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
+import { tryGetSupabaseClient } from '@/lib/supabaseClient';
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
+
+
+type TopicStateRow = {
+  room_id: string;
+  level: string;
+  word: string | null;
+};
 
 
 export default function TopicButtons({ roomId, myRole }:{ roomId:string; myRole:string }){
 const [level, setLevel] = useState('normal');
 const [word, setWord] = useState<string|undefined>('');
+const supabase = tryGetSupabaseClient();
 
 
 useEffect(()=>{
+if (!supabase) return;
 const load = async () => {
 const { data } = await supabase.from('topic_state').select('*').eq('room_id', roomId).maybeSingle();
 if (data) { setLevel(data.level); setWord(data.word ?? ''); }
@@ -16,12 +26,18 @@ if (data) { setLevel(data.level); setWord(data.word ?? ''); }
 load();
 const ch = supabase
 .channel(`topic:${roomId}`)
-.on('postgres_changes', { event:'*', schema:'public', table:'topic_state', filter:`room_id=eq.${roomId}` }, (p:any)=>{
-setLevel(p.new.level); setWord(p.new.word);
-})
+.on(
+  'postgres_changes',
+  { event:'*', schema:'public', table:'topic_state', filter:`room_id=eq.${roomId}` },
+  (payload: RealtimePostgresChangesPayload<TopicStateRow>)=>{
+    const next = payload.new as Partial<TopicStateRow> | null;
+    if (typeof next?.level === 'string') setLevel(next.level);
+    if (next && 'word' in next) setWord(next.word ?? '');
+  }
+)
 .subscribe();
 return ()=>{ supabase.removeChannel(ch); };
-},[roomId]);
+},[roomId, supabase]);
 
 
 const pick = async (which:'normal'|'hard'|'expert') => {
@@ -29,6 +45,7 @@ const path = which==='normal'? '/normal.json' : which==='hard'? '/hard.json' : '
 const res = await fetch(path);
 const arr: string[] = await res.json();
 const w = arr[Math.floor(Math.random() * arr.length)];
+if (!supabase) return;
 await supabase.from('topic_state').upsert({ room_id: roomId, level: which, word: w });
 };
 
@@ -40,9 +57,9 @@ return (
 <div className="rounded border p-3 bg-white">
 <div className="font-semibold mb-2">お題</div>
 <div className="flex flex-wrap gap-2 mb-2">
-<button onClick={()=>pick('normal')}>普通</button>
-<button onClick={()=>pick('hard')}>辛口</button>
-<button onClick={()=>pick('expert')}>激辛</button>
+<button onClick={()=>pick('normal')} disabled={!supabase}>普通</button>
+<button onClick={()=>pick('hard')} disabled={!supabase}>辛口</button>
+<button onClick={()=>pick('expert')} disabled={!supabase}>激辛</button>
 </div>
 <div className="text-sm">
 {canSee ? (

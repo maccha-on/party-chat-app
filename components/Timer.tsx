@@ -1,6 +1,16 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
+import { tryGetSupabaseClient } from '@/lib/supabaseClient';
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
+
+
+type TimerRow = {
+  room_id: string;
+  label: string;
+  running: boolean;
+  ends_at: string | null;
+  remaining_ms: number;
+};
 
 
 export default function Timer({ roomId }:{ roomId:string }){
@@ -10,6 +20,7 @@ const [endsAt, setEndsAt] = useState<string|null>(null);
 const [remainingMs, setRemainingMs] = useState(0);
 const [now, setNow] = useState(Date.now());
 const audioRef = useRef<HTMLAudioElement|null>(null);
+const supabase = tryGetSupabaseClient();
 
 
 useEffect(()=>{ const i=setInterval(()=>setNow(Date.now()), 200); return ()=>clearInterval(i); },[]);
@@ -17,6 +28,7 @@ useEffect(()=>{ const i=setInterval(()=>setNow(Date.now()), 200); return ()=>cle
 
 // 初期取得 + Realtime
 useEffect(()=>{
+if (!supabase) return;
 const load = async () => {
 const { data } = await supabase.from('timers').select('*').eq('room_id', roomId).maybeSingle();
 if (data) { setLabel(data.label); setRunning(data.running); setEndsAt(data.ends_at); setRemainingMs(data.remaining_ms); }
@@ -24,12 +36,20 @@ if (data) { setLabel(data.label); setRunning(data.running); setEndsAt(data.ends_
 load();
 const ch = supabase
 .channel(`timers:${roomId}`)
-.on('postgres_changes', { event:'*', schema:'public', table:'timers', filter:`room_id=eq.${roomId}` }, (p:any)=>{
-const d = p.new; setLabel(d.label); setRunning(d.running); setEndsAt(d.ends_at); setRemainingMs(d.remaining_ms);
-})
+.on(
+  'postgres_changes',
+  { event:'*', schema:'public', table:'timers', filter:`room_id=eq.${roomId}` },
+  (payload: RealtimePostgresChangesPayload<TimerRow>)=>{
+    const next = payload.new as Partial<TimerRow> | null;
+    if (typeof next?.label === 'string') setLabel(next.label);
+    if (typeof next?.running === 'boolean') setRunning(next.running);
+    if (next && 'ends_at' in next) setEndsAt(next.ends_at ?? null);
+    if (typeof next?.remaining_ms === 'number') setRemainingMs(next.remaining_ms);
+  }
+)
 .subscribe();
 return ()=>{ supabase.removeChannel(ch); };
-},[roomId]);
+},[roomId, supabase]);
 
 
 const left = useMemo(()=>{
@@ -57,10 +77,12 @@ const r = s % 60; return `${String(m).padStart(2,'0')}:${String(r).padStart(2,'0
 
 const start = async (sec:number) => {
 const end = new Date(Date.now() + sec*1000).toISOString();
+if (!supabase) return;
 await supabase.from('timers').upsert({ room_id: roomId, label: label || 'Timer', running: true, ends_at: end, remaining_ms: sec*1000 });
 };
 const pause = async () => {
 const remain = Math.max(0, (endsAt? new Date(endsAt).getTime(): Date.now()) - Date.now());
+if (!supabase) return;
 await supabase.from('timers').upsert({ room_id: roomId, label: label || 'Timer', running: false, ends_at: null, remaining_ms: remain });
 };
 
@@ -73,9 +95,9 @@ return (
 </div>
 <div className="flex flex-wrap gap-2 mb-2">
 {[30,60,90,120,180].map(s => (
-<button key={s} onClick={()=>start(s)}>{s}s スタート</button>
+<button key={s} onClick={()=>start(s)} disabled={!supabase}>{s}s スタート</button>
 ))}
-<button onClick={pause}>一時停止</button>
+<button onClick={pause} disabled={!supabase}>一時停止</button>
 </div>
 <audio ref={audioRef} src="/gong.mp3" preload="auto" />
 </div>

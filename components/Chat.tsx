@@ -1,18 +1,22 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
+import { tryGetSupabaseClient } from '@/lib/supabaseClient';
 
 
 type Msg = { id:number; username:string; body:string; created_at:string };
+type MessageRow = Msg & { room_id: string };
 
 
 export default function Chat({ roomId, me }:{ roomId:string; me:string }){
 const [text, setText] = useState('');
 const [items, setItems] = useState<Msg[]>([]);
 const bottomRef = useRef<HTMLDivElement>(null);
+const supabase = tryGetSupabaseClient();
 
 
 useEffect(()=>{
+if (!supabase) return;
 const load = async () => {
 const { data } = await supabase.from('messages').select('id,username,body,created_at').eq('room_id', roomId).order('created_at',{ascending:true}).limit(300);
 setItems(data ?? []);
@@ -21,16 +25,38 @@ bottomRef.current?.scrollIntoView({behavior:'smooth'});
 load();
 const ch = supabase
 .channel(`messages:${roomId}`)
-.on('postgres_changes', { event:'INSERT', schema:'public', table:'messages', filter:`room_id=eq.${roomId}` }, (p:any)=>{
-setItems(prev=>[...prev, p.new]); bottomRef.current?.scrollIntoView({behavior:'smooth'});
-})
+.on(
+  'postgres_changes',
+  { event:'INSERT', schema:'public', table:'messages', filter:`room_id=eq.${roomId}` },
+  (payload: RealtimePostgresChangesPayload<MessageRow>)=>{
+    const next = payload.new as Partial<MessageRow> | null;
+    if (
+      !next ||
+      typeof next.id !== 'number' ||
+      typeof next.username !== 'string' ||
+      typeof next.body !== 'string' ||
+      typeof next.created_at !== 'string'
+    ) {
+      return;
+    }
+    const msg: Msg = {
+      id: next.id,
+      username: next.username,
+      body: next.body,
+      created_at: next.created_at,
+    };
+    setItems(prev=>[...prev, msg]);
+    bottomRef.current?.scrollIntoView({behavior:'smooth'});
+  }
+)
 .subscribe();
 return ()=>{ supabase.removeChannel(ch); };
-},[roomId]);
+},[roomId, supabase]);
 
 
 const send = async () => {
 const body = text.trim(); if (!body) return; setText('');
+if (!supabase) return;
 await supabase.from('messages').insert({ room_id: roomId, username: me, body });
 };
 
@@ -49,7 +75,7 @@ return (
 </div>
 <div className="p-3 flex gap-2 border-t">
 <input value={text} onChange={(e)=>setText(e.target.value)} onKeyDown={onKey} className="px-3 py-2 w-full" placeholder="メッセージを入力" />
-<button onClick={send}>送信</button>
+<button onClick={send} disabled={!supabase}>送信</button>
 </div>
 </div>
 );

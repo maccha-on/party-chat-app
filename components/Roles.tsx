@@ -1,16 +1,22 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
-import type { Member } from './UsersPanel';
+import { tryGetSupabaseClient } from '@/lib/supabaseClient';
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
+
+
+type RolesStateRow = { room_id: string; revealed: boolean };
+type MemberRoleRow = { room_id: string; username: string; role: string };
 
 
 export default function Roles({ roomId, me }:{ roomId:string; me:string }){
 const [revealed, setRevealed] = useState(false);
 const [myRole, setMyRole] = useState('未定');
+const supabase = tryGetSupabaseClient();
 
 
 // roles_state と自分の役割を追従
 useEffect(()=>{
+if (!supabase) return;
 const init = async () => {
 const { data: rs } = await supabase.from('roles_state').select('revealed').eq('room_id', roomId).maybeSingle();
 if (rs) setRevealed(rs.revealed);
@@ -22,26 +28,41 @@ init();
 
 const ch1 = supabase
 .channel(`roles_state:${roomId}`)
-.on('postgres_changes', { event:'*', schema:'public', table:'roles_state', filter:`room_id=eq.${roomId}` }, (p:any)=>{
-setRevealed(p.new.revealed);
-})
+.on(
+  'postgres_changes',
+  { event:'*', schema:'public', table:'roles_state', filter:`room_id=eq.${roomId}` },
+  (payload: RealtimePostgresChangesPayload<RolesStateRow>)=>{
+    const next = payload.new as Partial<RolesStateRow> | null;
+    if (typeof next?.revealed === 'boolean') {
+      setRevealed(next.revealed);
+    }
+  }
+)
 .subscribe();
 
 
 const ch2 = supabase
 .channel(`members-role:${roomId}`)
-.on('postgres_changes', { event:'*', schema:'public', table:'members', filter:`room_id=eq.${roomId},username=eq.${me}` }, (p:any)=>{
-setMyRole(p.new.role);
-})
+.on(
+  'postgres_changes',
+  { event:'*', schema:'public', table:'members', filter:`room_id=eq.${roomId},username=eq.${me}` },
+  (payload: RealtimePostgresChangesPayload<MemberRoleRow>)=>{
+    const next = payload.new as Partial<MemberRoleRow> | null;
+    if (typeof next?.role === 'string') {
+      setMyRole(next.role);
+    }
+  }
+)
 .subscribe();
 
 
 return ()=>{ supabase.removeChannel(ch1); supabase.removeChannel(ch2); };
-},[roomId, me]);
+},[roomId, me, supabase]);
 
 
 // 役割決め：オンライン（10秒以内更新）メンバーに 1人ずつ割当
 const assignRoles = async () => {
+if (!supabase) return;
 const { data: list } = await supabase.from('members').select('*').eq('room_id', roomId);
 const online = (list||[]).filter(m => Date.now() - new Date(m.updated_at).getTime() < 10000);
 if (online.length < 2) return; // 安全策
@@ -61,6 +82,7 @@ await supabase.from('roles_state').upsert({ room_id: roomId, revealed: false });
 
 
 const revealRoles = async () => {
+if (!supabase) return;
 await supabase.from('roles_state').upsert({ room_id: roomId, revealed: true });
 };
 
@@ -69,8 +91,8 @@ return (
 <div className="rounded border p-3 bg-white">
 <div className="font-semibold mb-2">役割</div>
 <div className="flex gap-2 mb-2">
-<button onClick={assignRoles}>役割決め</button>
-<button onClick={revealRoles}>役割開示</button>
+<button onClick={assignRoles} disabled={!supabase}>役割決め</button>
+<button onClick={revealRoles} disabled={!supabase}>役割開示</button>
 </div>
 <div className="text-sm">あなたの役割：<span className="font-semibold">{myRole || '未定'}</span>{revealed ? '（全体に開示中）' : ''}</div>
 </div>

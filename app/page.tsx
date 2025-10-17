@@ -29,8 +29,8 @@ export default function Home() {
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 p-6">
-      <div className="flex items-center gap-4">
-        <Image src="/top.png" alt="top" width={120} height={120} className="rounded" />
+      <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center">
+        <Image src="/top.png" alt="top" width={240} height={240} className="rounded" />
         <div className="text-sm">
           ユーザー名：<span className="font-semibold">{username}</span>
         </div>

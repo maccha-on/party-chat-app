@@ -25,8 +25,8 @@ export default function Login() {
 
   return (
     <main className="mx-auto max-w-xl space-y-6 p-6">
-      <div className="flex items-center gap-4">
-        <Image src="/top.png" alt="top" width={120} height={120} className="rounded" />
+      <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center">
+        <Image src="/top.png" alt="top" width={240} height={240} className="rounded" />
         <h1 className="text-2xl font-bold">入室</h1>
       </div>
       <div className="space-y-2">

@@ -10,8 +10,7 @@ type TopicStateRow = {
   word: string | null;
 };
 
-const buttonClass =
-  'rounded border border-blue-200 bg-blue-50 text-blue-800 transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50';
+const buttonClass = 'rounded border border-blue-200 bg-blue-50 text-blue-800 transition-colors hover:bg-blue-100';
 
 export default function TopicButtons({ roomId, myRole }: { roomId: string; myRole: string }) {
   const [level, setLevel] = useState('normal');
@@ -60,13 +59,13 @@ export default function TopicButtons({ roomId, myRole }: { roomId: string; myRol
     <div className="rounded border bg-white p-3">
       <div className="mb-2 font-semibold">お題</div>
       <div className="mb-2 flex flex-wrap gap-2">
-        <button onClick={() => pick('normal')} disabled={!supabase} className={`${buttonClass} px-3 py-2 text-sm`}>
+        <button onClick={() => pick('normal')} className={`${buttonClass} px-3 py-2 text-sm`}>
           普通
         </button>
-        <button onClick={() => pick('hard')} disabled={!supabase} className={`${buttonClass} px-3 py-2 text-sm`}>
+        <button onClick={() => pick('hard')} className={`${buttonClass} px-3 py-2 text-sm`}>
           辛口
         </button>
-        <button onClick={() => pick('expert')} disabled={!supabase} className={`${buttonClass} px-3 py-2 text-sm`}>
+        <button onClick={() => pick('expert')} className={`${buttonClass} px-3 py-2 text-sm`}>
           激辛
         </button>
       </div>

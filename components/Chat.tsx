@@ -7,8 +7,7 @@ import { tryGetSupabaseClient } from '@/lib/supabaseClient';
 type Msg = { id: number; username: string; body: string; created_at: string };
 type MessageRow = Msg & { room_id: string };
 
-const buttonClass =
-  'rounded border border-blue-200 bg-blue-50 text-blue-800 transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50';
+const buttonClass = 'rounded border border-blue-200 bg-blue-50 text-blue-800 transition-colors hover:bg-blue-100';
 
 export default function Chat({ roomId, me }: { roomId: string; me: string }) {
   const [text, setText] = useState('');
@@ -93,7 +92,7 @@ export default function Chat({ roomId, me }: { roomId: string; me: string }) {
           className="w-full rounded border border-blue-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-200"
           placeholder="メッセージを入力"
         />
-        <button onClick={send} disabled={!supabase} className={`${buttonClass} px-3 py-2`}>
+        <button onClick={send} className={`${buttonClass} whitespace-nowrap px-4 py-2`}>
           送信
         </button>
       </div>

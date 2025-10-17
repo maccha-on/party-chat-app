@@ -6,8 +6,7 @@ import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
 export type Member = { id: number; room_id: string; username: string; score: number; role: string; updated_at: string };
 
-const buttonClass =
-  'rounded border border-blue-200 bg-blue-50 text-blue-800 transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50';
+const buttonClass = 'rounded border border-blue-200 bg-blue-50 text-blue-800 transition-colors hover:bg-blue-100';
 
 export default function UsersPanel({ roomId, me }: { roomId: string; me: string }) {
   const [members, setMembers] = useState<Member[]>([]);
@@ -93,10 +92,10 @@ export default function UsersPanel({ roomId, me }: { roomId: string; me: string 
             <span className={`h-2 w-2 rounded-full ${online(m) ? 'bg-green-500' : 'bg-gray-300'}`} />
             <span className="w-28 truncate">{m.username}</span>
             <span className="w-10 text-right">{m.score}</span>
-            <button onClick={() => adjust(m.username, +1)} disabled={!supabase} className={`${buttonClass} px-2 py-1 text-sm`}>
+            <button onClick={() => adjust(m.username, +1)} className={`${buttonClass} px-2 py-1 text-sm`}>
               ＋
             </button>
-            <button onClick={() => adjust(m.username, -1)} disabled={!supabase} className={`${buttonClass} px-2 py-1 text-sm`}>
+            <button onClick={() => adjust(m.username, -1)} className={`${buttonClass} px-2 py-1 text-sm`}>
               －
             </button>
             <span className="ml-3 text-xs text-gray-500">{m.role}</span>

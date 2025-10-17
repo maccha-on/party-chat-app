@@ -7,8 +7,7 @@ import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 type RolesStateRow = { room_id: string; revealed: boolean };
 type MemberRoleRow = { room_id: string; username: string; role: string };
 
-const buttonClass =
-  'rounded border border-blue-200 bg-blue-50 text-blue-800 transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50';
+const buttonClass = 'rounded border border-blue-200 bg-blue-50 text-blue-800 transition-colors hover:bg-blue-100';
 
 export default function Roles({ roomId, me }: { roomId: string; me: string }) {
   const [revealed, setRevealed] = useState(false);
@@ -94,10 +93,10 @@ export default function Roles({ roomId, me }: { roomId: string; me: string }) {
     <div className="rounded border bg-white p-3">
       <div className="mb-2 font-semibold">役割</div>
       <div className="mb-2 flex gap-2">
-        <button onClick={assignRoles} disabled={!supabase} className={`${buttonClass} px-3 py-2 text-sm`}>
+        <button onClick={assignRoles} className={`${buttonClass} px-3 py-2 text-sm`}>
           役割決め
         </button>
-        <button onClick={revealRoles} disabled={!supabase} className={`${buttonClass} px-3 py-2 text-sm`}>
+        <button onClick={revealRoles} className={`${buttonClass} px-3 py-2 text-sm`}>
           役割開示
         </button>
       </div>

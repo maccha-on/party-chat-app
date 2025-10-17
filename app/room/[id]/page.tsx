@@ -67,12 +67,14 @@ export default function RoomPage() {
   return (
     <main className="mx-auto max-w-5xl space-y-4 p-4">
       <TopHeader username={username} roomName={roomName} role={myRole} />
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div className="space-y-4 md:col-span-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+        <div className="space-y-4">
           <UsersPanel roomId={roomName} me={username} />
           <Timer roomId={roomName} />
           <Roles roomId={roomName} me={username} />
           <TopicButtons roomId={roomName} myRole={myRole} />
+        </div>
+        <div className="space-y-4">
           <Chat roomId={roomName} me={username} />
         </div>
       </div>

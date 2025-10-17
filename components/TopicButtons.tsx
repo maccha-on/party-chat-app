@@ -14,6 +14,7 @@ type TopicStateRow = {
 export default function TopicButtons({ roomId, myRole }:{ roomId:string; myRole:string }){
 const [level, setLevel] = useState('normal');
 const [word, setWord] = useState<string|undefined>('');
+const buttonClass = 'rounded border border-blue-200 bg-blue-50 px-3 py-2 text-blue-800 transition-colors hover:bg-blue-100 text-sm font-medium';
 
 
 useEffect(()=>{
@@ -54,9 +55,9 @@ return (
 <div className="rounded border p-3 bg-white">
 <div className="font-semibold mb-2">お題</div>
 <div className="flex flex-wrap gap-2 mb-2">
-<button onClick={()=>pick('normal')}>普通</button>
-<button onClick={()=>pick('hard')}>辛口</button>
-<button onClick={()=>pick('expert')}>激辛</button>
+<button onClick={()=>pick('normal')} className={buttonClass}>普通</button>
+<button onClick={()=>pick('hard')} className={buttonClass}>辛口</button>
+<button onClick={()=>pick('expert')} className={buttonClass}>激辛</button>
 </div>
 <div className="text-sm">
 {canSee ? (

@@ -12,6 +12,8 @@ export default function Chat({ roomId, me }:{ roomId:string; me:string }){
 const [text, setText] = useState('');
 const [items, setItems] = useState<Msg[]>([]);
 const bottomRef = useRef<HTMLDivElement>(null);
+const inputClass = 'w-full rounded border border-blue-200 bg-blue-50 px-3 py-2 placeholder:text-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-200';
+const buttonClass = 'rounded border border-blue-200 bg-blue-50 px-3 py-2 text-blue-800 transition-colors hover:bg-blue-100 font-medium';
 
 
 useEffect(()=>{
@@ -71,8 +73,8 @@ return (
 <div ref={bottomRef} />
 </div>
 <div className="p-3 flex gap-2 border-t">
-<input value={text} onChange={(e)=>setText(e.target.value)} onKeyDown={onKey} className="px-3 py-2 w-full" placeholder="メッセージを入力" />
-<button onClick={send}>送信</button>
+<input value={text} onChange={(e)=>setText(e.target.value)} onKeyDown={onKey} className={inputClass} placeholder="メッセージを入力" />
+<button onClick={send} className={buttonClass}>送信</button>
 </div>
 </div>
 );

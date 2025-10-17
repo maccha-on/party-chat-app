@@ -7,6 +7,9 @@ import { useRouter } from 'next/navigation';
 
 import { useUsername } from '@/lib/useUsername';
 
+const buttonClass =
+  'rounded border border-blue-200 bg-blue-50 text-blue-800 transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50';
+
 export default function Home() {
   const { username, logout, isLoaded } = useUsername();
   const router = useRouter();
@@ -16,7 +19,10 @@ export default function Home() {
     if (!username) router.replace('/login');
   }, [username, router, isLoaded]);
 
-  const rooms = Array.from({ length: 10 }, (_, i) => `room${i + 1}`);
+  const rooms = Array.from({ length: 10 }, (_, i) => ({
+    id: `room${i + 1}`,
+    label: `ルーム${i + 1}`,
+  }));
 
   if (!isLoaded) return null;
   if (!username) return null;
@@ -31,15 +37,21 @@ export default function Home() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {rooms.map((room) => (
-          <Link key={room} href={`/room/${room}`} className="px-3 py-3 text-center">
-            {room} に入室
+        {rooms.map(({ id, label }) => (
+          <Link
+            key={id}
+            href={`/room/${id}`}
+            className={`${buttonClass} block px-3 py-3 text-center`}
+          >
+            {label}
           </Link>
         ))}
       </div>
 
       <div className="flex justify-end">
-        <button onClick={logout}>ログアウト</button>
+        <button onClick={logout} className={`${buttonClass} px-3 py-2`}>
+          ログアウト
+        </button>
       </div>
     </main>
   );

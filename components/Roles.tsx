@@ -7,6 +7,7 @@ import type { Member } from './UsersPanel';
 export default function Roles({ roomId, me }:{ roomId:string; me:string }){
 const [revealed, setRevealed] = useState(false);
 const [myRole, setMyRole] = useState('未定');
+const buttonClass = 'rounded border border-blue-200 bg-blue-50 px-3 py-2 text-blue-800 transition-colors hover:bg-blue-100 text-sm font-medium';
 
 
 // roles_state と自分の役割を追従
@@ -69,8 +70,8 @@ return (
 <div className="rounded border p-3 bg-white">
 <div className="font-semibold mb-2">役割</div>
 <div className="flex gap-2 mb-2">
-<button onClick={assignRoles}>役割決め</button>
-<button onClick={revealRoles}>役割開示</button>
+<button onClick={assignRoles} className={buttonClass}>役割決め</button>
+<button onClick={revealRoles} className={buttonClass}>役割開示</button>
 </div>
 <div className="text-sm">あなたの役割：<span className="font-semibold">{myRole || '未定'}</span>{revealed ? '（全体に開示中）' : ''}</div>
 </div>

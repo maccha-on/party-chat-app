@@ -10,6 +10,8 @@ const [endsAt, setEndsAt] = useState<string|null>(null);
 const [remainingMs, setRemainingMs] = useState(0);
 const [now, setNow] = useState(Date.now());
 const audioRef = useRef<HTMLAudioElement|null>(null);
+const buttonClass = 'rounded border border-blue-200 bg-blue-50 px-3 py-2 text-blue-800 transition-colors hover:bg-blue-100 text-sm font-medium';
+const inputClass = 'rounded border border-blue-200 bg-blue-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200';
 
 
 useEffect(()=>{ const i=setInterval(()=>setNow(Date.now()), 200); return ()=>clearInterval(i); },[]);
@@ -68,14 +70,14 @@ await supabase.from('timers').upsert({ room_id: roomId, label: label || 'Timer',
 return (
 <div className="rounded border p-3 bg-white">
 <div className="flex items-center justify-between mb-2">
-<input value={label} onChange={(e)=>setLabel(e.target.value)} className="px-2 py-1" />
+<input value={label} onChange={(e)=>setLabel(e.target.value)} className={inputClass} />
 <span className="font-mono text-xl">{fmt(left)}</span>
 </div>
 <div className="flex flex-wrap gap-2 mb-2">
 {[30,60,90,120,180].map(s => (
-<button key={s} onClick={()=>start(s)}>{s}s スタート</button>
+<button key={s} onClick={()=>start(s)} className={buttonClass}>{s}s スタート</button>
 ))}
-<button onClick={pause}>一時停止</button>
+<button onClick={pause} className={buttonClass}>一時停止</button>
 </div>
 <audio ref={audioRef} src="/gong.mp3" preload="auto" />
 </div>

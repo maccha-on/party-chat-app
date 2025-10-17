@@ -13,6 +13,8 @@ useEffect(() => { if (!username) router.replace('/login'); }, [username, router]
 
 
 const rooms = Array.from({length:10}, (_,i)=>`room${i+1}`);
+const roomLinkClass = 'block rounded border border-blue-200 bg-blue-50 px-3 py-3 text-blue-800 transition-colors hover:bg-blue-100';
+const buttonClass = 'rounded border border-blue-200 bg-blue-50 px-3 py-2 text-blue-800 transition-colors hover:bg-blue-100 font-medium';
 
 
 if (!username) return null;
@@ -26,7 +28,7 @@ return (
 
 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
 {rooms.map(r => (
-<Link key={r} href={`/room/${r}`} className="px-3 py-3 text-center">
+<Link key={r} href={`/room/${r}`} className={`${roomLinkClass} text-center`}>
 {r} に入室
 </Link>
 ))}
@@ -34,7 +36,7 @@ return (
 
 
 <div className="flex justify-end">
-<button onClick={logout}>ログアウト</button>
+<button onClick={logout} className={buttonClass}>ログアウト</button>
 </div>
 </main>
 );

@@ -90,7 +90,7 @@ await supabase.from('timers').upsert({ room_id: roomId, label: label || 'Timer',
 return (
 <div className="rounded border p-3 bg-white">
 <div className="flex items-center justify-between mb-2">
-<input value={label} onChange={(e)=>setLabel(e.target.value)} className="px-2 py-1" />
+<input value={label} onChange={(e)=>setLabel(e.target.value)} className={inputClass} />
 <span className="font-mono text-xl">{fmt(left)}</span>
 </div>
 <div className="flex flex-wrap gap-2 mb-2">

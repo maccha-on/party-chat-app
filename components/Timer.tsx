@@ -1,8 +1,8 @@
 'use client';
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { tryGetSupabaseClient } from '@/lib/supabaseClient';
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
-
 
 type TimerRow = {
   room_id: string;
@@ -12,94 +12,107 @@ type TimerRow = {
   remaining_ms: number;
 };
 
+const inputClass =
+  'w-full rounded border border-blue-200 bg-blue-50 px-3 py-2 placeholder:text-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-200';
+const buttonClass =
+  'rounded border border-blue-200 bg-blue-50 text-blue-800 transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50';
 
-export default function Timer({ roomId }:{ roomId:string }){
-const [label, setLabel] = useState('Timer');
-const [running, setRunning] = useState(false);
-const [endsAt, setEndsAt] = useState<string|null>(null);
-const [remainingMs, setRemainingMs] = useState(0);
-const [now, setNow] = useState(Date.now());
-const audioRef = useRef<HTMLAudioElement|null>(null);
-const supabase = tryGetSupabaseClient();
+export default function Timer({ roomId }: { roomId: string }) {
+  const [label, setLabel] = useState('Timer');
+  const [running, setRunning] = useState(false);
+  const [endsAt, setEndsAt] = useState<string | null>(null);
+  const [remainingMs, setRemainingMs] = useState(0);
+  const [now, setNow] = useState(Date.now());
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const supabase = tryGetSupabaseClient();
 
+  useEffect(() => {
+    const i = setInterval(() => setNow(Date.now()), 200);
+    return () => clearInterval(i);
+  }, []);
 
-useEffect(()=>{ const i=setInterval(()=>setNow(Date.now()), 200); return ()=>clearInterval(i); },[]);
+  // 初期取得 + Realtime
+  useEffect(() => {
+    if (!supabase) return;
+    const load = async () => {
+      const { data } = await supabase.from('timers').select('*').eq('room_id', roomId).maybeSingle();
+      if (data) {
+        setLabel(data.label);
+        setRunning(data.running);
+        setEndsAt(data.ends_at);
+        setRemainingMs(data.remaining_ms);
+      }
+    };
+    load();
+    const ch = supabase
+      .channel(`timers:${roomId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'timers', filter: `room_id=eq.${roomId}` },
+        (payload: RealtimePostgresChangesPayload<TimerRow>) => {
+          const next = payload.new as Partial<TimerRow> | null;
+          if (typeof next?.label === 'string') setLabel(next.label);
+          if (typeof next?.running === 'boolean') setRunning(next.running);
+          if (next && 'ends_at' in next) setEndsAt(next.ends_at ?? null);
+          if (typeof next?.remaining_ms === 'number') setRemainingMs(next.remaining_ms);
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [roomId, supabase]);
 
+  const left = useMemo(() => {
+    if (running && endsAt) return Math.max(0, new Date(endsAt).getTime() - now);
+    return Math.max(0, remainingMs);
+  }, [running, endsAt, remainingMs, now]);
 
-// 初期取得 + Realtime
-useEffect(()=>{
-if (!supabase) return;
-const load = async () => {
-const { data } = await supabase.from('timers').select('*').eq('room_id', roomId).maybeSingle();
-if (data) { setLabel(data.label); setRunning(data.running); setEndsAt(data.ends_at); setRemainingMs(data.remaining_ms); }
-};
-load();
-const ch = supabase
-.channel(`timers:${roomId}`)
-.on(
-  'postgres_changes',
-  { event:'*', schema:'public', table:'timers', filter:`room_id=eq.${roomId}` },
-  (payload: RealtimePostgresChangesPayload<TimerRow>)=>{
-    const next = payload.new as Partial<TimerRow> | null;
-    if (typeof next?.label === 'string') setLabel(next.label);
-    if (typeof next?.running === 'boolean') setRunning(next.running);
-    if (next && 'ends_at' in next) setEndsAt(next.ends_at ?? null);
-    if (typeof next?.remaining_ms === 'number') setRemainingMs(next.remaining_ms);
-  }
-)
-.subscribe();
-return ()=>{ supabase.removeChannel(ch); };
-},[roomId, supabase]);
+  // 0になった瞬間にゴング
+  const prevLeft = useRef(left);
+  useEffect(() => {
+    if (prevLeft.current > 0 && left === 0) {
+      audioRef.current?.play().catch(() => {});
+    }
+    prevLeft.current = left;
+  }, [left]);
 
+  const fmt = (ms: number) => {
+    const s = Math.ceil(ms / 1000);
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
+  };
 
-const left = useMemo(()=>{
-if (running && endsAt) return Math.max(0, new Date(endsAt).getTime() - now);
-return Math.max(0, remainingMs);
-},[running, endsAt, remainingMs, now]);
+  const start = async (sec: number) => {
+    const end = new Date(Date.now() + sec * 1000).toISOString();
+    if (!supabase) return;
+    await supabase.from('timers').upsert({ room_id: roomId, label: label || 'Timer', running: true, ends_at: end, remaining_ms: sec * 1000 });
+  };
 
+  const pause = async () => {
+    const remain = Math.max(0, (endsAt ? new Date(endsAt).getTime() : Date.now()) - Date.now());
+    if (!supabase) return;
+    await supabase.from('timers').upsert({ room_id: roomId, label: label || 'Timer', running: false, ends_at: null, remaining_ms: remain });
+  };
 
-// 0になった瞬間にゴング
-const prevLeft = useRef(left);
-useEffect(()=>{
-if (prevLeft.current > 0 && left === 0) {
-audioRef.current?.play().catch(()=>{});
-}
-prevLeft.current = left;
-},[left]);
-
-
-const fmt = (ms:number) => {
-const s = Math.ceil(ms/1000);
-const m = Math.floor(s/60);
-const r = s % 60; return `${String(m).padStart(2,'0')}:${String(r).padStart(2,'0')}`;
-};
-
-
-const start = async (sec:number) => {
-const end = new Date(Date.now() + sec*1000).toISOString();
-if (!supabase) return;
-await supabase.from('timers').upsert({ room_id: roomId, label: label || 'Timer', running: true, ends_at: end, remaining_ms: sec*1000 });
-};
-const pause = async () => {
-const remain = Math.max(0, (endsAt? new Date(endsAt).getTime(): Date.now()) - Date.now());
-if (!supabase) return;
-await supabase.from('timers').upsert({ room_id: roomId, label: label || 'Timer', running: false, ends_at: null, remaining_ms: remain });
-};
-
-
-return (
-<div className="rounded border p-3 bg-white">
-<div className="flex items-center justify-between mb-2">
-<input value={label} onChange={(e)=>setLabel(e.target.value)} className={inputClass} />
-<span className="font-mono text-xl">{fmt(left)}</span>
-</div>
-<div className="flex flex-wrap gap-2 mb-2">
-{[30,60,90,120,180].map(s => (
-<button key={s} onClick={()=>start(s)} disabled={!supabase}>{s}s スタート</button>
-))}
-<button onClick={pause} disabled={!supabase}>一時停止</button>
-</div>
-<audio ref={audioRef} src="/gong.mp3" preload="auto" />
-</div>
-);
+  return (
+    <div className="rounded border bg-white p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <input value={label} onChange={(e) => setLabel(e.target.value)} className={inputClass} />
+        <span className="font-mono text-xl">{fmt(left)}</span>
+      </div>
+      <div className="mb-2 flex flex-wrap gap-2">
+        {[30, 60, 90, 120, 180].map((s) => (
+          <button key={s} onClick={() => start(s)} disabled={!supabase} className={`${buttonClass} px-3 py-2 text-sm`}>
+            {s}s スタート
+          </button>
+        ))}
+        <button onClick={pause} disabled={!supabase} className={`${buttonClass} px-3 py-2 text-sm`}>
+          一時停止
+        </button>
+      </div>
+      <audio ref={audioRef} src="/gong.mp3" preload="auto" />
+    </div>
+  );
 }

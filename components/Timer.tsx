@@ -1,6 +1,16 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
+
+
+type TimerRow = {
+  room_id: string;
+  label: string;
+  running: boolean;
+  ends_at: string | null;
+  remaining_ms: number;
+};
 
 
 export default function Timer({ roomId }:{ roomId:string }){
@@ -26,9 +36,17 @@ if (data) { setLabel(data.label); setRunning(data.running); setEndsAt(data.ends_
 load();
 const ch = supabase
 .channel(`timers:${roomId}`)
-.on('postgres_changes', { event:'*', schema:'public', table:'timers', filter:`room_id=eq.${roomId}` }, (p:any)=>{
-const d = p.new; setLabel(d.label); setRunning(d.running); setEndsAt(d.ends_at); setRemainingMs(d.remaining_ms);
-})
+.on(
+  'postgres_changes',
+  { event:'*', schema:'public', table:'timers', filter:`room_id=eq.${roomId}` },
+  (payload: RealtimePostgresChangesPayload<TimerRow>)=>{
+    const next = payload.new as Partial<TimerRow> | null;
+    if (typeof next?.label === 'string') setLabel(next.label);
+    if (typeof next?.running === 'boolean') setRunning(next.running);
+    if (next && 'ends_at' in next) setEndsAt(next.ends_at ?? null);
+    if (typeof next?.remaining_ms === 'number') setRemainingMs(next.remaining_ms);
+  }
+)
 .subscribe();
 return ()=>{ supabase.removeChannel(ch); };
 },[roomId]);

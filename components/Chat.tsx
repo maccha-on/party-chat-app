@@ -1,9 +1,11 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabaseClient';
 
 
 type Msg = { id:number; username:string; body:string; created_at:string };
+type MessageRow = Msg & { room_id: string };
 
 
 export default function Chat({ roomId, me }:{ roomId:string; me:string }){
@@ -23,9 +25,30 @@ bottomRef.current?.scrollIntoView({behavior:'smooth'});
 load();
 const ch = supabase
 .channel(`messages:${roomId}`)
-.on('postgres_changes', { event:'INSERT', schema:'public', table:'messages', filter:`room_id=eq.${roomId}` }, (p:any)=>{
-setItems(prev=>[...prev, p.new]); bottomRef.current?.scrollIntoView({behavior:'smooth'});
-})
+.on(
+  'postgres_changes',
+  { event:'INSERT', schema:'public', table:'messages', filter:`room_id=eq.${roomId}` },
+  (payload: RealtimePostgresChangesPayload<MessageRow>)=>{
+    const next = payload.new as Partial<MessageRow> | null;
+    if (
+      !next ||
+      typeof next.id !== 'number' ||
+      typeof next.username !== 'string' ||
+      typeof next.body !== 'string' ||
+      typeof next.created_at !== 'string'
+    ) {
+      return;
+    }
+    const msg: Msg = {
+      id: next.id,
+      username: next.username,
+      body: next.body,
+      created_at: next.created_at,
+    };
+    setItems(prev=>[...prev, msg]);
+    bottomRef.current?.scrollIntoView({behavior:'smooth'});
+  }
+)
 .subscribe();
 return ()=>{ supabase.removeChannel(ch); };
 },[roomId]);

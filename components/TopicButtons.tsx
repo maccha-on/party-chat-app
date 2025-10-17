@@ -1,6 +1,14 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
+
+
+type TopicStateRow = {
+  room_id: string;
+  level: string;
+  word: string | null;
+};
 
 
 export default function TopicButtons({ roomId, myRole }:{ roomId:string; myRole:string }){
@@ -17,9 +25,15 @@ if (data) { setLevel(data.level); setWord(data.word ?? ''); }
 load();
 const ch = supabase
 .channel(`topic:${roomId}`)
-.on('postgres_changes', { event:'*', schema:'public', table:'topic_state', filter:`room_id=eq.${roomId}` }, (p:any)=>{
-setLevel(p.new.level); setWord(p.new.word);
-})
+.on(
+  'postgres_changes',
+  { event:'*', schema:'public', table:'topic_state', filter:`room_id=eq.${roomId}` },
+  (payload: RealtimePostgresChangesPayload<TopicStateRow>)=>{
+    const next = payload.new as Partial<TopicStateRow> | null;
+    if (typeof next?.level === 'string') setLevel(next.level);
+    if (next && 'word' in next) setWord(next.word ?? '');
+  }
+)
 .subscribe();
 return ()=>{ supabase.removeChannel(ch); };
 },[roomId]);

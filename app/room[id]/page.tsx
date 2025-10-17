@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import type { PostgresChangesPayload } from '@supabase/supabase-js';
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
 import Chat from '@/components/Chat';
 import Roles from '@/components/Roles';
@@ -45,8 +45,9 @@ export default function RoomPage() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'members', filter: `room_id=eq.${id},username=eq.${username}` },
-        (payload: PostgresChangesPayload<{ role: string }>) => {
-          if (payload.new?.role) setMyRole(payload.new.role);
+        (payload: RealtimePostgresChangesPayload<{ role: string }>) => {
+          const next = payload.new as { role?: string } | null;
+          if (next?.role) setMyRole(next.role);
         },
       )
       .subscribe();

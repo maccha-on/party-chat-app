@@ -1,7 +1,11 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import type { Member } from './UsersPanel';
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
+
+
+type RolesStateRow = { room_id: string; revealed: boolean };
+type MemberRoleRow = { room_id: string; username: string; role: string };
 
 
 export default function Roles({ roomId, me }:{ roomId:string; me:string }){
@@ -23,17 +27,31 @@ init();
 
 const ch1 = supabase
 .channel(`roles_state:${roomId}`)
-.on('postgres_changes', { event:'*', schema:'public', table:'roles_state', filter:`room_id=eq.${roomId}` }, (p:any)=>{
-setRevealed(p.new.revealed);
-})
+.on(
+  'postgres_changes',
+  { event:'*', schema:'public', table:'roles_state', filter:`room_id=eq.${roomId}` },
+  (payload: RealtimePostgresChangesPayload<RolesStateRow>)=>{
+    const next = payload.new as Partial<RolesStateRow> | null;
+    if (typeof next?.revealed === 'boolean') {
+      setRevealed(next.revealed);
+    }
+  }
+)
 .subscribe();
 
 
 const ch2 = supabase
 .channel(`members-role:${roomId}`)
-.on('postgres_changes', { event:'*', schema:'public', table:'members', filter:`room_id=eq.${roomId},username=eq.${me}` }, (p:any)=>{
-setMyRole(p.new.role);
-})
+.on(
+  'postgres_changes',
+  { event:'*', schema:'public', table:'members', filter:`room_id=eq.${roomId},username=eq.${me}` },
+  (payload: RealtimePostgresChangesPayload<MemberRoleRow>)=>{
+    const next = payload.new as Partial<MemberRoleRow> | null;
+    if (typeof next?.role === 'string') {
+      setMyRole(next.role);
+    }
+  }
+)
 .subscribe();
 
 

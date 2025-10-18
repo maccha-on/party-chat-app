@@ -41,16 +41,20 @@ export default function Timer({ roomId }: { roomId: string }) {
 
   useEffect(() => {
     if (!supabase) return;
+    let active = true;
     const load = async () => {
       const { data } = await supabase.from('timers').select('*').eq('room_id', roomId).maybeSingle();
-      if (data) {
-        setRunning(data.running);
-        setEndsAt(data.ends_at);
-        setRemainingMs(data.remaining_ms);
-        syncInputs(data.remaining_ms);
-      }
+      if (!data || !active) return;
+      setRunning(data.running);
+      setEndsAt(data.ends_at);
+      setRemainingMs(data.remaining_ms);
+      syncInputs(data.remaining_ms);
     };
-    load();
+    void load();
+
+    const interval = setInterval(() => {
+      void load();
+    }, 1000);
     const ch = supabase
       .channel(`timers:${roomId}`)
       .on(
@@ -68,6 +72,8 @@ export default function Timer({ roomId }: { roomId: string }) {
       )
       .subscribe();
     return () => {
+      active = false;
+      clearInterval(interval);
       supabase.removeChannel(ch);
     };
   }, [roomId, supabase, syncInputs]);

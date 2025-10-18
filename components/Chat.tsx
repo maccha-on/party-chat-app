@@ -50,6 +50,7 @@ export default function Chat({ roomId, me }: { roomId: string; me: string }) {
 
   useEffect(() => {
     if (!supabase) return;
+    let active = true;
     const load = async () => {
       const { data } = await supabase
         .from('messages')
@@ -57,10 +58,15 @@ export default function Chat({ roomId, me }: { roomId: string; me: string }) {
         .eq('room_id', roomId)
         .order('created_at', { ascending: true })
         .limit(300);
+      if (!active) return;
       setItems(data ?? []);
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
-    load();
+    void load();
+
+    const interval = setInterval(() => {
+      void load();
+    }, 1000);
     const ch = supabase
       .channel(`messages:${roomId}`)
       .on(
@@ -89,6 +95,8 @@ export default function Chat({ roomId, me }: { roomId: string; me: string }) {
       )
       .subscribe();
     return () => {
+      active = false;
+      clearInterval(interval);
       supabase.removeChannel(ch);
     };
   }, [roomId, supabase]);

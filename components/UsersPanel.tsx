@@ -72,11 +72,17 @@ export default function UsersPanel({ roomId, me }: { roomId: string; me: string 
   // 初期読み込み + Realtime購読
   useEffect(() => {
     if (!supabase) return;
+    let active = true;
     const load = async () => {
       const { data } = await supabase.from('members').select('*').eq('room_id', roomId).order('username');
+      if (!active) return;
       setMembers(data ?? []);
     };
-    load();
+    void load();
+
+    const interval = setInterval(() => {
+      void load();
+    }, 1000);
 
     const ch = supabase
       .channel(`members:${roomId}`)
@@ -102,6 +108,8 @@ export default function UsersPanel({ roomId, me }: { roomId: string; me: string 
       )
       .subscribe();
     return () => {
+      active = false;
+      clearInterval(interval);
       supabase.removeChannel(ch);
     };
   }, [roomId, supabase]);

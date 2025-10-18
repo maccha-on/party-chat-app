@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { tryGetSupabaseClient } from '@/lib/supabaseClient';
 
@@ -14,6 +14,39 @@ export default function Chat({ roomId, me }: { roomId: string; me: string }) {
   const [items, setItems] = useState<Msg[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const supabase = tryGetSupabaseClient();
+  const storageKey = useMemo(() => `party-chat-messages:${roomId}`, [roomId]);
+
+  const writeLocalMessages = useCallback((next: Msg[]) => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify(next));
+    } catch {
+      // noop
+    }
+  }, [storageKey]);
+
+  const readLocalMessages = useCallback((): Msg[] => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = window.localStorage.getItem(storageKey);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw) as Msg[] | null;
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .filter((item): item is Msg => {
+          return (
+            !!item &&
+            typeof item.id === 'number' &&
+            typeof item.username === 'string' &&
+            typeof item.body === 'string' &&
+            typeof item.created_at === 'string'
+          );
+        })
+        .sort((a, b) => a.created_at.localeCompare(b.created_at));
+    } catch {
+      return [];
+    }
+  }, [storageKey]);
 
   useEffect(() => {
     if (!supabase) return;
@@ -60,11 +93,40 @@ export default function Chat({ roomId, me }: { roomId: string; me: string }) {
     };
   }, [roomId, supabase]);
 
+  useEffect(() => {
+    if (supabase) return;
+    const sync = () => {
+      setItems(readLocalMessages());
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+    sync();
+    const storageListener = (event: StorageEvent) => {
+      if (event.key === storageKey) {
+        sync();
+      }
+    };
+    window.addEventListener('storage', storageListener);
+    return () => {
+      window.removeEventListener('storage', storageListener);
+    };
+  }, [readLocalMessages, storageKey, supabase]);
+
   const send = async () => {
     const body = text.trim();
     if (!body) return;
     setText('');
-    if (!supabase) return;
+    if (!supabase) {
+      setItems((prev) => {
+        const updated = [
+          ...prev,
+          { id: Date.now(), username: me, body, created_at: new Date().toISOString() },
+        ];
+        writeLocalMessages(updated);
+        return updated;
+      });
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
     await supabase.from('messages').insert({ room_id: roomId, username: me, body });
   };
 

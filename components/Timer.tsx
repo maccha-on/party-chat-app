@@ -163,8 +163,9 @@ export default function Timer({ roomId }: { roomId: string }) {
 
   return (
     <div className="rounded border bg-white p-3">
-      <div className="mb-2 flex items-center justify-end">
-        <span className="font-mono text-xl">{fmt(left)}</span>
+      <div className="mb-4 flex flex-col items-center gap-1 text-blue-800">
+        <span className="text-xs text-blue-600">残り時間</span>
+        <span className="font-mono text-2xl">{fmt(left)}</span>
       </div>
       <div className="mb-3 flex flex-wrap items-end gap-3 text-sm">
         <label className="flex flex-col text-blue-800">

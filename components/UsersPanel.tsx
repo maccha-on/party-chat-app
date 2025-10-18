@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { tryGetSupabaseClient } from '@/lib/supabaseClient';
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
@@ -11,6 +11,40 @@ const buttonClass = 'rounded border border-blue-200 bg-blue-50 text-blue-800 tra
 export default function UsersPanel({ roomId, me }: { roomId: string; me: string }) {
   const [members, setMembers] = useState<Member[]>([]);
   const supabase = tryGetSupabaseClient();
+
+  const storageKey = useMemo(() => `party-chat-members:${roomId}`, [roomId]);
+
+  const writeLocalMembers = useCallback((next: Member[]) => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify(next));
+    } catch {
+      // ignore storage write failures
+    }
+  }, [storageKey]);
+
+  const readLocalMembers = useCallback((): Member[] => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = window.localStorage.getItem(storageKey);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw) as Member[] | null;
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .filter((item): item is Member => {
+          return (
+            !!item &&
+            typeof item.username === 'string' &&
+            typeof item.room_id === 'string' &&
+            typeof item.score === 'number' &&
+            typeof item.updated_at === 'string'
+          );
+        })
+        .sort((a, b) => a.username.localeCompare(b.username));
+    } catch {
+      return [];
+    }
+  }, [storageKey]);
 
   // 入室処理（upsert）＆ heartbeat（5秒毎）
   useEffect(() => {
@@ -72,10 +106,62 @@ export default function UsersPanel({ roomId, me }: { roomId: string; me: string 
     };
   }, [roomId, supabase]);
 
+  useEffect(() => {
+    if (supabase) return;
+    const nowIso = new Date().toISOString();
+    const existing = readLocalMembers().filter((item): item is Member =>
+      !!item && typeof item.username === 'string',
+    );
+    const others = existing.filter((m) => m.username !== me);
+    const localMember: Member = {
+      id: Date.now(),
+      room_id: roomId,
+      username: me,
+      score: 0,
+      role: '',
+      updated_at: nowIso,
+    };
+    const initialMembers = [...others, localMember];
+    setMembers(initialMembers);
+    writeLocalMembers(initialMembers);
+    const sync = () => {
+      setMembers(readLocalMembers());
+    };
+    const storageListener = (event: StorageEvent) => {
+      if (event.key === storageKey) {
+        sync();
+      }
+    };
+    window.addEventListener('storage', storageListener);
+    const heartbeat = setInterval(() => {
+      setMembers((prev) => {
+        const updated = prev.map((m) =>
+          m.username === me ? { ...m, updated_at: new Date().toISOString() } : m,
+        );
+        writeLocalMembers(updated);
+        return updated;
+      });
+    }, 5000);
+    sync();
+    return () => {
+      window.removeEventListener('storage', storageListener);
+      clearInterval(heartbeat);
+      const remaining = readLocalMembers().filter((m) => m.username !== me);
+      writeLocalMembers(remaining);
+    };
+  }, [me, readLocalMembers, roomId, storageKey, supabase, writeLocalMembers]);
+
   const adjust = async (u: string, delta: number) => {
     const m = members.find((x) => x.username === u);
     if (!m) return;
-    if (!supabase) return;
+    if (!supabase) {
+      const updated = members.map((member) =>
+        member.username === u ? { ...member, score: member.score + delta } : member,
+      );
+      setMembers(updated);
+      writeLocalMembers(updated);
+      return;
+    }
     await supabase.from('members').update({ score: m.score + delta }).eq('id', m.id);
   };
 
